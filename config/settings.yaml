@@ -1,0 +1,84 @@
+# India Trading Desk settings. Every number here is a starting point, not advice.
+
+mode: paper            # paper | live   (live also needs ALLOW_LIVE=1 in .env)
+data_source: yfinance  # yfinance (free, delayed, paper only) | kite (needs paid Kite Connect, ₹500/month)
+approval: observe      # observe (week 1: approve nothing) | console | telegram
+
+# 10-20 NSE symbols you already know (NSE trading symbols, no .NS suffix)
+watchlist:
+  - RELIANCE
+  - TCS
+  - INFY
+  - HDFCBANK
+  - ICICIBANK
+  - SBIN
+  - ITC
+  - LT
+  - BHARTIARTL
+  - AXISBANK
+
+market:
+  open: "09:15"
+  close: "15:30"
+  scan_start: "09:30"          # skip the first 15 minutes; opening volume distorts the numbers
+  no_new_trades_after: "14:45"
+  square_off_at: "15:15"       # intraday: close everything before Zerodha's MIS auto square-off
+  scan_every_minutes: 5
+  holidays_file: config/nse_holidays.txt
+
+scout:
+  move_pct: 3.0                # flag if price is up this much over the window...
+  move_window_minutes: 60
+  volume_multiple: 2.0         # ...or volume is this many times normal for this time of day (and price is up)
+  volume_lookback_days: 20
+  max_flags_per_day: 5
+
+chart:
+  lookback_bars: 30            # 1-minute bars used to find the recent swing low
+  max_stop_pct: 2.0            # stop never more than 2% below entry
+  min_stop_pct: 0.5            # and never so tight that noise hits it
+  min_reward_risk: 2.0         # target at least 2x as far as the stop
+  tick_size: 0.05              # check NSE's tick size for the stock's price band
+
+sizer:
+  starting_capital: 100000     # paper capital. Your live cap is separate; see README
+  max_position_pct: 5.0
+  max_open_trades: 3
+  max_daily_loss_pct: 2.0      # no new trades once the day's realised loss hits this
+
+executor:
+  max_chase_pct: 0.5           # after approval, skip if price ran this far above the planned entry
+  approval_timeout_minutes: 10
+
+paper:
+  slippage_pct: 0.05           # paper fills are made this much worse than the last price
+  brokerage_pct: 0.03          # estimate of Zerodha intraday brokerage
+  brokerage_cap: 20            # ₹ per order
+  other_charges_pct: 0.03      # rough estimate for STT, exchange, GST, stamp. Replace with real figures
+
+# AI for NEWS and SKEPTIC. Pick one block; model names change, so check the provider's model list.
+llm:
+  # --- Google Gemini, free tier (key from aistudio.google.com) ---
+  provider: openai
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+  api_key_env: GEMINI_API_KEY
+  model: gemini-flash-latest       # or any model listed in Google AI Studio
+  max_tokens: 600
+
+  # --- Groq, free tier (key from console.groq.com) ---
+  # provider: openai
+  # base_url: https://api.groq.com/openai/v1
+  # api_key_env: GROQ_API_KEY
+  # model: <a model from console.groq.com/docs/models>
+
+  # --- Ollama, free and local (ollama.com; small models only on a 4 GB GPU) ---
+  # provider: openai
+  # base_url: http://localhost:11434/v1
+  # api_key_env: ""
+  # model: qwen2.5:3b
+
+  # --- Claude, paid (key from platform.claude.com) ---
+  # provider: anthropic
+  # model: claude-sonnet-5-5
+
+db_path: data/desk.db

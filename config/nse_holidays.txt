@@ -1,0 +1,3 @@
+# NSE trading holidays, one date per line as YYYY-MM-DD.
+# Copy them from NSE's official holiday list (nseindia.com > Resources > Exchange Communication > Holidays).
+# Weekends are handled automatically.
