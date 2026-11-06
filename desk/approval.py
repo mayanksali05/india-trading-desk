@@ -1,7 +1,8 @@
 """How EXECUTOR asks you before placing anything.
 
-observe  : week 1. Never approves; everything is logged so you can read the desk's reasoning.
-console  : y/n prompt in the terminal.
+observe   : week 1. Never approves; everything is logged so you can read the desk's reasoning.
+dashboard : Approve / Reject buttons in the local dashboard (streamlit run dashboard.py).
+console   : y/n prompt in the terminal.
 telegram : Approve / Reject buttons on your phone. No answer before the timeout = rejected."""
 from __future__ import annotations
 
@@ -42,6 +43,32 @@ class ConsoleApprover:
 
     def notify(self, text: str) -> None:
         print(text)
+
+
+class DashboardApprover:
+    """Approve / Reject buttons in the dashboard (streamlit run dashboard.py).
+    The request waits in the database; no click before the timeout = expired, not placed."""
+
+    def __init__(self, db, timeout_minutes: float, poll_seconds: float = 2.0):
+        self.db = db
+        self.timeout_s = timeout_minutes * 60
+        self.poll_s = poll_seconds
+
+    def ask(self, order: Order, ruling: Ruling, note: NewsNote) -> bool:
+        approval_id = self.db.create_approval(order.symbol, describe(order, ruling, note))
+        log.info("Waiting for approval #%s (%s) in the dashboard", approval_id, order.symbol)
+        deadline = time.monotonic() + self.timeout_s
+        while time.monotonic() < deadline:
+            status = self.db.approval_status(approval_id)
+            if status != "PENDING":
+                return status == "APPROVED"
+            time.sleep(self.poll_s)
+        if self.db.decide_approval(approval_id, "EXPIRED"):
+            return False
+        return self.db.approval_status(approval_id) == "APPROVED"   # clicked in the last instant
+
+    def notify(self, text: str) -> None:
+        log.info(text)
 
 
 class TelegramApprover:

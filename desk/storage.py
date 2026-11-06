@@ -52,6 +52,14 @@ CREATE TABLE IF NOT EXISTS journal (
     tag TEXT,
     message TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS approvals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    details TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',   -- PENDING | APPROVED | REJECTED | EXPIRED
+    decided_at TEXT
+);
 """
 
 
@@ -63,8 +71,11 @@ class DB:
     def __init__(self, path: str | Path):
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(path), check_same_thread=False)
+        # timeout + WAL let the desk and the dashboard use the same file at the same time
+        self.conn = sqlite3.connect(str(path), check_same_thread=False, timeout=10)
         self.conn.row_factory = sqlite3.Row
+        if str(path) != ":memory:":
+            self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
 
     # ---- account ----
@@ -157,6 +168,37 @@ class DB:
             q += " AND substr(closed_at, 1, 10) = ?"
             args.append(day)
         return float(self.conn.execute(q, args).fetchone()[0])
+
+    def closed_positions(self, mode: str) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT * FROM positions WHERE mode = ? AND status = 'CLOSED' ORDER BY closed_at", (mode,)
+        ).fetchall()
+
+    # ---- approvals (used by the dashboard) ----
+    def create_approval(self, symbol: str, details: str) -> int:
+        cur = self.conn.execute(
+            "INSERT INTO approvals (created_at, symbol, details) VALUES (?, ?, ?)",
+            (now_ist().isoformat(timespec="seconds"), symbol, details),
+        )
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def approval_status(self, approval_id: int) -> str:
+        row = self.conn.execute("SELECT status FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+        return row["status"] if row else "EXPIRED"
+
+    def decide_approval(self, approval_id: int, status: str) -> bool:
+        """Set APPROVED / REJECTED / EXPIRED. Only a PENDING request can change, so a late click
+        on an expired request does nothing. Returns True if this call made the decision."""
+        cur = self.conn.execute(
+            "UPDATE approvals SET status = ?, decided_at = ? WHERE id = ? AND status = 'PENDING'",
+            (status, now_ist().isoformat(timespec="seconds"), approval_id),
+        )
+        self.conn.commit()
+        return cur.rowcount == 1
+
+    def pending_approvals(self) -> list[sqlite3.Row]:
+        return self.conn.execute("SELECT * FROM approvals WHERE status = 'PENDING' ORDER BY id").fetchall()
 
     def positions_on(self, mode: str, day: str) -> list[sqlite3.Row]:
         return self.conn.execute(

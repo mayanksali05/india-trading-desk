@@ -40,12 +40,14 @@ india-trading-desk/
 │   └── broker/
 │       ├── paper.py         # fake-money account with slippage and estimated charges
 │       └── kite.py          # Kite login session + LIVE broker (untested, see warnings)
+├── dashboard.py             # local web dashboard: desk chat, trades, P&L, approvals, emergency stop
 ├── scripts/
 │   ├── run_desk.py          # main loop during market hours (--once for a single cycle)
 │   ├── report.py            # daily log; --benchmark compares with NIFTY 50
 │   ├── kite_login.py        # daily Zerodha login (only for data_source: kite or live mode)
-│   └── stop.py              # emergency stop: no new trades (--off to undo)
-├── tests/                   # 19 tests, including a full cycle with fake data and a fake AI
+│   ├── stop.py              # emergency stop: no new trades (--off to undo)
+│   └── demo_data.py         # sample data to try the dashboard (writes data/demo.db)
+├── tests/                   # 23 tests, including a full cycle with fake data and a fake AI
 ├── .env.example
 └── requirements.txt
 ```
@@ -57,7 +59,7 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows  (source .venv/bin/activate on Mac/Linux)
 pip install -r requirements.txt
 copy .env.example .env            # then add your AI key (and Telegram details later)
-python -m pytest -q               # should print 19 passed
+python -m pytest -q               # should print 23 passed
 ```
 
 **AI provider.** The default is Google Gemini's free tier: get a key at aistudio.google.com and put it
@@ -77,12 +79,36 @@ python scripts/run_desk.py
 Everything each role says is logged to the terminal, `logs/desk-YYYY-MM-DD.log` and the `journal`
 table in `data/desk.db`. After the close it prints the day's log.
 
+## Dashboard
+
+A local web page to watch the desk. Open a second terminal (with the venv active) next to `run_desk.py`:
+
+```bash
+streamlit run dashboard.py
+```
+
+It opens at http://localhost:8501 and shows:
+
+- **Desk chat**: each flagged stock as a thread (Scout → News → Chart → Skeptic → Sizer → Executor)
+- **Trades**: open positions and the day's closed trades
+- **Flags**: what Scout picked up and why
+- **History**: win rate, average win/loss, cumulative P&L, and a NIFTY 50 comparison button
+- **Approve / Reject** buttons when `approval: dashboard` is set in settings.yaml
+- **Emergency stop** switch in the sidebar (same as `scripts/stop.py`)
+
+To try it before the market opens, load sample data (your real `data/desk.db` is not touched):
+
+```bash
+python scripts/demo_data.py
+streamlit run dashboard.py -- --db data/demo.db
+```
+
 ## The one-month paper test
 
 | When | Settings | What to check |
 |---|---|---|
 | Week 1 | `approval: observe` | Read every post. Is Skeptic refusing far more than it approves? If not, tighten `desk/prompts.py` |
-| Weeks 2–4 | `approval: telegram` (or `console`) | Approve the paper trades you agree with. Note the ones you'd skip, and why |
+| Weeks 2–4 | `approval: dashboard` (or `telegram` / `console`) | Approve the paper trades you agree with. Note the ones you'd skip, and why |
 | End of month | `python scripts/report.py --benchmark` | Did the desk beat simply holding the NIFTY 50? If not on paper, real money won't fix it |
 
 ## Things to know
