@@ -6,4 +6,5 @@ yfinance>=0.2.40
 anthropic>=0.40
 openai>=1.40
 kiteconnect>=5.0
+streamlit>=1.50
 pytest>=8.0

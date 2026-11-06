@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import os
 
-from desk.approval import ConsoleApprover, ObserveApprover, TelegramApprover
+from desk.approval import ConsoleApprover, DashboardApprover, ObserveApprover, TelegramApprover
 from desk.broker.paper import PaperBroker
 from desk.config import ROOT, resolve
 from desk.llm import LLM
@@ -59,6 +59,8 @@ class Desk:
         mode = self.s.approval
         if mode == "console":
             return ConsoleApprover()
+        if mode == "dashboard":
+            return DashboardApprover(self.db, self.s.executor.approval_timeout_minutes)
         if mode == "telegram":
             return TelegramApprover(os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_CHAT_ID", ""),
                                     self.s.executor.approval_timeout_minutes)

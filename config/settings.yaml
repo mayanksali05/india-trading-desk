@@ -2,7 +2,7 @@
 
 mode: paper            # paper | live   (live also needs ALLOW_LIVE=1 in .env)
 data_source: yfinance  # yfinance (free, delayed, paper only) | kite (needs paid Kite Connect, ₹500/month)
-approval: observe      # observe (week 1: approve nothing) | console | telegram
+approval: observe      # observe (week 1: approve nothing) | dashboard | console | telegram
 
 # 10-20 NSE symbols you already know (NSE trading symbols, no .NS suffix)
 watchlist:
